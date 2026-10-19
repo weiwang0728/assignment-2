@@ -17,6 +17,12 @@ dependencies = [
     "tqdm==4.67.3",         # displays progress while validators process runs
 ]
 
+[project.optional-dependencies]
+docker = [
+    "mini-swe-agent==2.4.5",
+    "requests==2.32.4",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

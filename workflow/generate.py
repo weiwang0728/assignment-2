@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import modal
 from PIL import Image
 from tqdm import tqdm
 
@@ -157,13 +156,27 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--force", action="store_true", help="replace completed task/model runs"
     )
+    parser.add_argument("--backend", choices=("modal", "docker"), default="modal")
+    parser.add_argument("--docker-image", default="assignment-agent:local")
     arguments = parser.parse_args(argv)
     try:
         tasks = load_tasks(arguments.tasks)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
-    remote = modal.Function.from_name(RUNNER_APP, RUNNER_FUNCTION)
+    if arguments.backend == "docker":
+        try:
+            from .docker_runner import prepare_runner
+
+            run = prepare_runner(arguments.docker_image, arguments.models)
+        except ImportError:
+            parser.error("Install Docker backend dependencies: uv sync --extra docker")
+        except (OSError, ValueError, RuntimeError) as error:
+            parser.error(str(error))
+    else:
+        import modal
+
+        run = modal.Function.from_name(RUNNER_APP, RUNNER_FUNCTION).remote
     failures = 0
     jobs = [
         (task, descriptor, AGENT_BY_KEY[key])
@@ -180,7 +193,7 @@ def main(argv: list[str] | None = None) -> None:
             progress.write(f"skip {destination} (already exists)")
             continue
         try:
-            result = remote.remote(build_request(task, descriptor, agent))
+            result = run(build_request(task, descriptor, agent))
             written = write_result(
                 task,
                 descriptor,
@@ -194,4 +207,4 @@ def main(argv: list[str] | None = None) -> None:
             failures += 1
             progress.write(f"ERROR {task.task_id} / {agent.key}: {error}")
     if failures:
-        raise SystemExit(f"{failures} run(s) failed remotely; rerun to resume")
+        raise SystemExit(f"{failures} run(s) failed; rerun to resume")
