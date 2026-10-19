@@ -12,6 +12,7 @@ dependencies = [
     "pydantic==2.13.5",   # the runner validates every prediction against prediction.py
     "openai==2.54.0",     # calls the OpenAI-compatible validator endpoint;
                           #   held below 3.0 because harbor -> litellm requires it
+    "httpx[socks]==0.28.1", # supports SOCKS proxies used by the local environment
     "harbor==0.23.0",     # packages authored tasks as evaluation environments
     "python-dotenv==1.2.3", # loads endpoint settings from .env during development
     "tqdm==4.67.3",         # displays progress while validators process runs
